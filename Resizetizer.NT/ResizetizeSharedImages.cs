@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Resizetizer
 {
@@ -66,51 +66,60 @@ namespace Resizetizer
 
 			var resizedImages = new ConcurrentBag<ResizedImageInfo>();
 
-			System.Threading.Tasks.Parallel.ForEach(images, img =>
-			{
-				try
+			Parallel.ForEach(
+				images.GroupBy(x => x.Filename),
+				new ParallelOptions
 				{
-					var opStopwatch = new Stopwatch();
-					opStopwatch.Start();
-
-					string op;
-
-					if (img.IsAppIcon)
-					{
-						// App icons are special
-						ProcessAppIcon(img, resizedImages);
-
-						op = "App Icon";
-					}
-					else
-					{
-						// By default we resize, but let's make sure
-						if (img.Resize)
-						{
-							ProcessImageResize(img, dpis, resizedImages);
-
-							op = "Resize";
-						}
-						else
-						{
-							// Otherwise just copy the thing over to the 1.0 scale
-							ProcessImageCopy(img, originalScaleDpi, resizedImages);
-
-							op = "Copy";
-						}
-					}
-
-					opStopwatch.Stop();
-
-					Log.LogMessage(MessageImportance.Low, $"{op} took {opStopwatch.ElapsedMilliseconds}ms");
-				}
-				catch (Exception ex)
+					MaxDegreeOfParallelism = 5
+				},
+				imgGroup =>
 				{
-					Log.LogErrorFromException(ex);
+					foreach (var img in imgGroup)
+					{
+						try
+						{
+							var opStopwatch = new Stopwatch();
+							opStopwatch.Start();
 
-					throw;
-				}
-			});
+							string op;
+
+							if (img.IsAppIcon)
+							{
+								// App icons are special
+								ProcessAppIcon(img, resizedImages);
+
+								op = "App Icon";
+							}
+							else
+							{
+								// By default we resize, but let's make sure
+								if (img.Resize)
+								{
+									ProcessImageResize(img, dpis, resizedImages);
+
+									op = "Resize";
+								}
+								else
+								{
+									// Otherwise just copy the thing over to the 1.0 scale
+									ProcessImageCopy(img, originalScaleDpi, resizedImages);
+
+									op = "Copy";
+								}
+							}
+
+							opStopwatch.Stop();
+
+							Log.LogMessage(MessageImportance.Low, $"{op} took {opStopwatch.ElapsedMilliseconds}ms");
+						}
+						catch (Exception ex)
+						{
+							Log.LogErrorFromException(ex);
+
+							throw;
+						}
+					}
+				});
 
 			var copiedResources = new List<TaskItem>();
 
