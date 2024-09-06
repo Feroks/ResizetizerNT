@@ -64,7 +64,7 @@ namespace Resizetizer
 				}
 
 				// Save (encode)
-				using var stream = File.Create(destination);
+				using var stream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
 				tempBitmap.Encode(stream, SKEncodedImageFormat.Png, 100);
 			}
 
